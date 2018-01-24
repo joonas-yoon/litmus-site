@@ -12,13 +12,17 @@ from django.db.models.functions import Coalesce
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
+from mptt.fields import TreeForeignKey
+from mptt.models import MPTTModel
+
 from judge.fulltext import SearchQuerySet
 from judge.models.profile import Profile
 from judge.models.runtime import Language
 from judge.user_translations import ugettext as user_ugettext
 from judge.utils.raw_sql import unique_together_left_join, RawSQLColumn
 
-__all__ = ['ProblemGroup', 'ProblemType', 'Problem', 'ProblemTranslation', 'ProblemClarification',
+__all__ = ['ProblemGroup', 'ProblemType', 'ProblemSource',
+           'Problem', 'ProblemTranslation', 'ProblemClarification',
            'TranslatedProblemQuerySet', 'TranslatedProblemForeignKeyQuerySet', 'License']
 
 
@@ -46,6 +50,23 @@ class ProblemGroup(models.Model):
         ordering = ['full_name']
         verbose_name = _('problem group')
         verbose_name_plural = _('problem groups')
+
+
+class ProblemSource(MPTTModel):
+    class Meta:
+        verbose_name = _('problem source item')
+        verbose_name_plural = _('problem sources')
+
+    class MPTTMeta:
+        order_insertion_by = ['order']
+
+    order = models.PositiveIntegerField(db_index=True, verbose_name=_('order'))
+    key = models.AutoField(primary_key=True, verbose_name=_('key'))
+    name = models.CharField(max_length=20, verbose_name=_('name'))
+    parent = TreeForeignKey('self', verbose_name=_('parent item'), null=True, blank=True, related_name='children')
+
+    def __unicode__(self):
+        return self.name
 
 
 class License(models.Model):
