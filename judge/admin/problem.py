@@ -8,12 +8,24 @@ from django.db.models import Q
 from django.forms import ModelForm
 from django.utils.html import format_html
 from django.utils.translation import ugettext, ungettext, ugettext_lazy as _
+from django.utils.timezone import now
 from reversion.admin import VersionAdmin
 
 from judge.models import Profile, LanguageLimit, ProblemTranslation, Problem, ProblemClarification
 from judge.models import Solution
 from judge.widgets import HeavySelect2MultipleWidget, Select2MultipleWidget, Select2Widget, \
     HeavyPreviewAdminPageDownWidget, HeavyPreviewPageDownWidget, CheckboxSelectMultipleWithSelectAll
+
+from django_summernote.widgets import SummernoteWidget
+
+
+def read_file_content(filename):
+    import os, dmoj.settings as settings
+    try:
+        with open(os.path.join(settings.BASE_DIR, filename)) as f:
+            return f.read()
+    except:
+        return ''
 
 
 class ProblemForm(ModelForm):
@@ -27,6 +39,8 @@ class ProblemForm(ModelForm):
         self.fields['change_message'].widget.attrs.update({
             'placeholder': ugettext('Describe the changes you made (optional)')
         })
+        self.fields['date'].initial = now
+        self.fields['description'].initial = read_file_content('templates/problem_default_template.html')
 
     class Meta:
         widgets = {
@@ -37,8 +51,8 @@ class ProblemForm(ModelForm):
             'types': Select2MultipleWidget,
             'group': Select2Widget,
         }
-        if HeavyPreviewAdminPageDownWidget is not None:
-            widgets['description'] = HeavyPreviewAdminPageDownWidget(preview=reverse_lazy('problem_preview'), template='pagedown-problem.html')
+        if SummernoteWidget is not None:
+            widgets['description'] = SummernoteWidget()
 
 
 class ProblemCreatorListFilter(admin.SimpleListFilter):
@@ -67,8 +81,8 @@ class LanguageLimitInline(admin.TabularInline):
 
 class ProblemClarificationForm(ModelForm):
     class Meta:
-        if HeavyPreviewPageDownWidget is not None:
-            widgets = {'description': HeavyPreviewPageDownWidget(preview=reverse_lazy('comment_preview'))}
+        if SummernoteWidget is not None:
+            widgets = {'description': SummernoteWidget()}
 
 
 class ProblemClarificationInline(admin.StackedInline):
@@ -88,8 +102,8 @@ class ProblemSolutionForm(ModelForm):
             'authors': HeavySelect2MultipleWidget(data_view='profile_select2', attrs={'style': 'width: 100%'}),
         }
 
-        if HeavyPreviewAdminPageDownWidget is not None:
-            widgets['content'] = HeavyPreviewAdminPageDownWidget(preview=reverse_lazy('solution_preview'))
+        if SummernoteWidget is not None:
+            widgets['content'] = SummernoteWidget()
 
 
 class ProblemSolutionInline(admin.StackedInline):
@@ -101,8 +115,8 @@ class ProblemSolutionInline(admin.StackedInline):
 
 class ProblemTranslationForm(ModelForm):
     class Meta:
-        if HeavyPreviewAdminPageDownWidget is not None:
-            widgets = {'description': HeavyPreviewAdminPageDownWidget(preview=reverse_lazy('problem_preview'))}
+        if SummernoteWidget is not None:
+            widgets = {'description': SummernoteWidget()}
 
 
 class ProblemTranslationInline(admin.StackedInline):
@@ -241,9 +255,10 @@ class ProblemAdmin(VersionAdmin):
             kwargs['widget'] = CheckboxSelectMultipleWithSelectAll()
         return super(ProblemAdmin, self).formfield_for_manytomany(db_field, request, **kwargs)
 
-    def get_form(self, *args, **kwargs):
-        form = super(ProblemAdmin, self).get_form(*args, **kwargs)
+    def get_form(self, request, *args, **kwargs):
+        form = super(ProblemAdmin, self).get_form(request, *args, **kwargs)
         form.base_fields['authors'].queryset = Profile.objects.all()
+        form.base_fields['authors'].initial = (request.user,)
         return form
 
     def save_model(self, request, obj, form, change):

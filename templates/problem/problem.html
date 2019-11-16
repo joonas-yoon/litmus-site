@@ -2,14 +2,9 @@
 {% block content_media %}
     {% include "comments/media-css.html" %}
     <style>
-        .title-state {
-            font-size: 2em;
-            float: left;
-            width: 1.1em;
-            display: block;
-            margin-top: 0.16em;
+        #content .header {
+            letter-spacing: 0;
         }
-
         .info-float a {
             vertical-align: middle;
         }
@@ -28,6 +23,15 @@
             display: inline-block;
             padding-left: 3em;
         }
+ 
+        .content-description pre p { margin: 0 !important; }
+    </style>
+    <style type="text/css" media="print">
+        html, body { padding: 0 !important; }
+        .footer, .button.clarify { display: none; }
+        * { font-size: 97%; }
+		p { margin-bottom: 0; }
+        #content, #problem-title, .condition.table { margin-top: 0 !important; }
     </style>
 {% endblock %}
 
@@ -45,27 +49,43 @@
 {% endblock %}
 
 {% block title_row %}
-    <div class="problem-title">
-        {% if request.user.is_authenticated %}
-            {% if problem.id in completed_problem_ids %}
-                <a href="{{ url('user_submissions', problem.code, request.user.username) }}">
-                    {% if problem.is_public or request.in_contest %}
-                        <i class="solved-problem-color title-state fa fa-check-circle"></i>
+    <div class="">
+        <h1 id="problem-title" class="ui huge header">
+            {{ title }}
+            <small>
+                {% if request.user.is_authenticated %}
+                    {% if problem.id in completed_problem_ids %}
+                        <a href="{{ url('user_submissions', problem.code, request.user.username) }}">
+                            {% if problem.is_public or request.in_contest %}
+                                <div class="ui green small label">해결</div>
+                            {% else %}
+                                <div class="ui green small label">
+                                    <i class="fa fa-lock"></i> 성공
+                                </div>
+                            {% endif %}
+                        </a>
+                    {% elif problem.id in attempted_problems %}
+                        <a href="{{ url('user_submissions', problem.code, request.user.username) }}">
+                            {% if problem.is_public or request.in_contest %}
+                                <div class="ui red small label">실패</div>
+                            {% else %}
+                                <div class="ui red small label">
+                                    <i class="fa fa-lock"></i> 실패
+                                </div>
+                            {% endif %}
+                        </a>
                     {% else %}
-                        <i class="solved-problem-color title-state fa fa-lock"></i>
+                        {% if problem.is_public or request.in_contest %}
+                        {% else %}
+                            <div class="ui small label">
+                                <i class="fa fa-lock"></i>
+                            </div>
+                        {% endif %}
                     {% endif %}
-                </a>
-            {% elif problem.id in attempted_problems %}
-                <a href="{{ url('user_submissions', problem.code, request.user.username) }}">
-                    {% if problem.is_public or request.in_contest %}
-                        <i class="attempted-problem-color title-state fa fa-minus-circle"></i>
-                    {% else %}
-                        <i class="attempted-problem-color title-state fa fa-lock"></i>
-                    {% endif %}
-                </a>
-            {% endif %}
-        {% endif %}
-        <h2 style="color:#393630; display: inline-block">{{ title }}</h2>
+                {% endif %}
+            </small>
+        </h1>
+
         {% if has_pdf_render %}
             <span class="spacer"></span>
             <a href="{{ url('problem_pdf', problem.code) }}" class="view-pdf">
@@ -80,6 +100,7 @@
 {% endblock %}
 
 {% block info_float %}
+  <div class="noprint">
     {% if request.user.is_authenticated and request.in_contest and submission_limit %}
         {% if submissions_left > 0 %}
             <a href="{{ url('problem_submit', problem.code) }}" class="unselectable button full">
@@ -137,40 +158,6 @@
     {% endif %}
     <hr>
     <br>
-    <div class="problem-info-entry">
-        <i class="fa fa-check fa-fw"></i><span class="pi-name">{{ _('Points:') }}</span>
-        <span class="pi-value">
-            {% if contest_problem %}
-                {{ contest_problem.points }}{% if contest_problem.partial %} {{ _('(partial)') }}{% endif %}
-            {% else %}
-                {{ problem.points|floatformat }}{% if problem.partial %} {{ _('(partial)') }}{% endif %}
-            {% endif %}
-        </span>
-    </div>
-    <div class="problem-info-entry">
-        <i class="fa fa-clock-o fa-fw"></i><span class="pi-name">{{ _('Time limit:') }}</span>
-        <span class="pi-value">{{ problem.time_limit }}초</span>
-    </div>
-    <div class="problem-lang-limits">
-        {% for name, limit in problem.language_time_limit %}
-            <div class="lang-limit">
-                <span class="lang-name">{{ name }}</span>
-                <span class="lang-tl">{{ limit }}초</span>
-            </div>
-        {% endfor %}
-    </div>
-    <div class="problem-info-entry">
-        <i class="fa fa-server fa-fw"></i><span class="pi-name">{{ _('Memory limit:') }}</span>
-        <span class="pi-value">{{ problem.memory_limit|kbsimpleformat }}</span>
-    </div>
-    <div class="problem-lang-limits">
-        {% for name, limit in problem.language_memory_limit %}
-            <div class="lang-limit">
-                <span class="lang-name">{{ name }}</span>
-                <span class="lang-ml">{{ limit|kbsimpleformat }}</span>
-            </div>
-        {% endfor %}
-    </div>
     {% cache 86400 'problem_authors' problem.id LANGUAGE_CODE %}
         {% with authors=problem.authors.all() %}
             {% if authors %}
@@ -197,7 +184,11 @@
                     Problem types
                 {% endtrans %}
                 </div>
-                <div style="display:none" class="toggled">{{ problem.types_list|join(", ") }}</div>
+                <div style="display:none" class="toggled">
+                    {% for type in problem.types_list %}
+                        <a href="#" class="ui basic label">{{ type }}</a>&nbsp;
+                    {% endfor %}
+                </div>
             {% endwith %}
         </div>
         <br>
@@ -211,22 +202,68 @@
                 {% with usable=problem.usable_common_names, langs=problem.languages_list() %}
                     {% for lang in langs %}
                         {% if lang in usable %}
-                            {{ lang }}
+                            <span class="ui green basic label" style="margin-top: 5px;">{{ lang }}</span>
                         {% else %}
-                            <s title="{{ _('No %(lang)s judge online', lang=lang) }}">{{ lang }}</s>
+                            <span class="ui grey basic label" style="margin-top: 5px;">
+                                <strike data-tooltip="{{ _('No %(lang)s judge online', lang=lang) }}">{{ lang }}</strike>
+                            </span>
                         {% endif %}
-                        {% if not loop.last %}, {% endif %}
                     {% endfor %}
                 {% endwith %}
             </div>
         </div>
         <br>
     {% endif %}
+  </div>
 {% endblock %}
 
 {% block description %}
-    {% cache 86400 'problem_html' problem.id MATH_ENGINE LANGUAGE_CODE %}
-        {{ description|markdown("problem", MATH_ENGINE)|reference|str|safe }}
+    <table class="ui compact center aligned very basic condition table">
+        <thead>
+        <tr>
+            <th>
+                <i class="fa fa-check fa-fw"></i> {{ _('Points:') }}
+            </th>
+            <th>
+                <i class="fa fa-clock-o fa-fw"></i> {{ _('Time limit:') }}
+            </th>
+            <th>
+                <i class="fa fa-server fa-fw"></i> {{ _('Memory limit:') }}
+            </th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                {% if contest_problem %}
+                    {{ contest_problem.points }}{% if contest_problem.partial %} {{ _('(partial)') }}{% endif %}
+                {% else %}
+                    {{ problem.points|floatformat }}{% if problem.partial %} {{ _('(partial)') }}{% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {{ problem.time_limit }}초
+                <div class="problem-lang-limits">
+                {% for name, limit in problem.language_time_limit %}
+                    ({{ name }}) {{ limit }}초<br>
+                {% endfor %}
+                </div>
+            </td>
+            <div class="detail">
+            <td>
+                {{ problem.memory_limit|kbsimpleformat }}
+                <div class="problem-lang-limits">
+                {% for name, limit in problem.language_memory_limit %}
+                    ({{ name }}) {{ limit|kbsimpleformat }}<br>
+                {% endfor %}
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    {% cache 0 'problem_html' problem.id LANGUAGE_CODE %}
+        {{ description|safe }}
     {% endcache %}
 
     {% with license=problem.license %}
@@ -251,6 +288,7 @@
 {% endblock %}
 
 {% block comments %}
+  <div class="noprint">
     {% if contest_problem and contest_problem.contest.use_clarifications %}
         <div class="clarifications-area">
             <h2><i class="fa fa-question-circle"></i> {{ _('Clarifications') }}</h2>
@@ -259,7 +297,7 @@
                     <div class="problem-clarification">
                         <div class="time">{{ relative_time(clarification.date) }}</div>
                         <span class="body">
-                            {{ clarification.description|markdown('problem', MATH_ENGINE)|reference }}
+                            {{ clarification.description|safe }}
                         </span>
                     </div>
                 {% endfor %}
@@ -270,6 +308,7 @@
     {% else %}
         {% include "comments/list.html" %}
     {% endif %}
+  </div>
 {% endblock %}
 
 {% block bodyend %}

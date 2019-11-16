@@ -12,7 +12,7 @@ from judge.admin.taxon import ProblemGroupAdmin, ProblemTypeAdmin, ProblemSource
 from judge.admin.ticket import TicketAdmin
 from judge.models import Language, Profile, Problem, ProblemGroup, ProblemType, ProblemSource, \
     Submission, Comment, MiscConfig, Judge, NavigationBar, Contest, ContestParticipation, \
-    Organization, BlogPost, License, OrganizationRequest, ContestTag, Ticket
+    Organization, BlogPost, License, OrganizationRequest, ContestTag, Ticket, Notification
 
 admin.site.register(Language, LanguageAdmin)
 admin.site.register(Comment, CommentAdmin)
@@ -33,3 +33,4 @@ admin.site.register(BlogPost, BlogPostAdmin)
 admin.site.register(License, LicenseAdmin)
 admin.site.register(OrganizationRequest, OrganizationRequestAdmin)
 admin.site.register(Ticket, TicketAdmin)
+admin.site.register(Notification, NotificationAdmin)

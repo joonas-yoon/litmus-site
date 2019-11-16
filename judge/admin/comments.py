@@ -5,7 +5,9 @@ from django.utils.translation import ungettext, ugettext_lazy as _
 from reversion.admin import VersionAdmin
 
 from judge.models import Comment
-from judge.widgets import HeavyPreviewAdminPageDownWidget, HeavySelect2Widget
+from judge.widgets import HeavySelect2Widget
+
+from django_summernote.widgets import SummernoteWidget
 
 
 class CommentForm(ModelForm):
@@ -14,8 +16,8 @@ class CommentForm(ModelForm):
             'author': HeavySelect2Widget(data_view='profile_select2'),
             'parent': HeavySelect2Widget(data_view='comment_select2'),
         }
-        if HeavyPreviewAdminPageDownWidget is not None:
-            widgets['body'] = HeavyPreviewAdminPageDownWidget(preview=reverse_lazy('comment_preview'))
+        if SummernoteWidget is not None:
+            widgets['body'] = SummernoteWidget()
 
 
 class CommentAdmin(VersionAdmin):
@@ -63,3 +65,9 @@ class CommentAdmin(VersionAdmin):
         super(CommentAdmin, self).save_model(request, obj, form, change)
         if obj.hidden:
             obj.get_descendants().update(hidden=obj.hidden)
+
+    def get_form(self, request, *args, **kwargs):
+        form = super(CommentAdmin, self).get_form(request, *args, **kwargs)
+        form.base_fields['author'].initial = request.user
+        return form
+

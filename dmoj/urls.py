@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.conf.urls import include, url
+from django.conf.urls.static import static as url_static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps.views import sitemap
@@ -14,7 +15,7 @@ from judge.sitemap import ProblemSitemap, UserSitemap, HomePageSitemap, UrlSitem
     BlogPostSitemap, SolutionSitemap
 from judge.views import TitledTemplateView
 from judge.views import organization, language, status, blog, problem, mailgun, license, register, user, \
-    submission, widgets, comment, contests, api, ranked_submission, stats, preview, ticket
+    submission, widgets, comment, contests, api, ranked_submission, stats, preview, ticket, notification
 from judge.views.problem_data import ProblemDataView, problem_data_file, problem_init_view
 from judge.views.register import RegistrationView, ActivationView
 from judge.views.select2 import UserSelect2View, OrganizationSelect2View, ProblemSelect2View, CommentSelect2View, \
@@ -322,7 +323,16 @@ urlpatterns = [
         url(r'^contest/$', ContestSelect2View.as_view(), name='contest_select2'),
         url(r'^comment/$', CommentSelect2View.as_view(), name='comment_select2'),
     ])),
-]
+
+    url(r'^notifications/', include([
+        url(r'^$', notification.my_notification_list, name='notification_list'),
+        url(r'^send/$', notification.send_notification, name='notification_send'),
+        url(r'^json/$', notification.get_list_json, name='notification_json'),
+        url(r'^read/$', notification.read_notification, name='notification_read'),
+    ])),
+
+    url(r'^summernote/', include('django_summernote.urls')),
+] + url_static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 favicon_paths = ['apple-touch-icon-180x180.png', 'apple-touch-icon-114x114.png', 'android-chrome-72x72.png',
                  'apple-touch-icon-57x57.png', 'apple-touch-icon-72x72.png', 'apple-touch-icon.png', 'mstile-70x70.png',

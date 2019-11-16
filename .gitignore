@@ -13,3 +13,7 @@ sass_processed
 *.log
 *.conf
 *.ini
+media/
+node_modules/
+uwsgi
+static/cache/

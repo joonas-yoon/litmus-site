@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import F, QuerySet
 from django.db.models.expressions import RawSQL
@@ -115,6 +115,7 @@ class TranslatedProblemForeignKeyQuerySet(QuerySet):
 
 class Problem(models.Model):
     code = models.CharField(max_length=20, verbose_name=_('problem code'), unique=True,
+                            help_text=_('You can only use lower case and hyphen. e.g. pr0b1em-c0de'),
                             validators=[RegexValidator('^[a-zA-Z0-9\-]+$', _('Problem code must be ^[a-z0-9]+$'))])
     name = models.CharField(max_length=100, verbose_name=_('problem name'), db_index=True)
     description = models.TextField(verbose_name=_('problem body'))
@@ -129,8 +130,10 @@ class Problem(models.Model):
     group = models.ForeignKey(ProblemGroup, verbose_name=_('problem group'))
     time_limit = models.FloatField(verbose_name=_('time limit'), help_text=_('The time limit for this problem, in seconds. Fractional seconds (e.g. 1.5) are supported.'), default=1.0)
     memory_limit = models.IntegerField(verbose_name=_('memory limit'), help_text=_('The memory limit for this problem, in kilobytes (e.g. 64mb = 65536 kilobytes).'), default=131072)
-    short_circuit = models.BooleanField(default=False)
-    points = models.FloatField(verbose_name=_('points'))
+    short_circuit = models.BooleanField(verbose_name=_('Short circuit'), default=False)
+    points = models.FloatField(verbose_name=_('points'), default=10.0,
+                               help_text=_('Problem points should be between 1.0 and 20.0'),
+                               validators=[MinValueValidator(1.0), MaxValueValidator(20.0)])
     partial = models.BooleanField(verbose_name=_('allows partial points'), default=False)
     allowed_languages = models.ManyToManyField(Language, verbose_name=_('allowed languages'))
     is_public = models.BooleanField(verbose_name=_('publicly visible'), db_index=True, default=False)

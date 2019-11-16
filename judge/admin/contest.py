@@ -7,13 +7,17 @@ from django.db.models import TextField, Q
 from django.forms import ModelForm, ModelMultipleChoiceField
 from django.http import HttpResponseRedirect, Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext
 from reversion.admin import VersionAdmin
 
 from judge.models import Contest, ContestProblem, Profile, Rating
 from judge.ratings import rate_contest
+from judge.utils.generator import make_key, GenerateRandomFruitTextInput
 from judge.widgets import HeavySelect2Widget, HeavySelect2MultipleWidget, AdminPagedownWidget, Select2MultipleWidget, \
     HeavyPreviewAdminPageDownWidget, Select2Widget
+
+from django_summernote.widgets import SummernoteWidget
 
 
 class HeavySelect2Widget(HeavySelect2Widget):
@@ -54,6 +58,9 @@ class ContestTagAdmin(admin.ModelAdmin):
 
 
 class ContestProblemInlineForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(ContestProblemInlineForm, self).__init__(*args, **kwargs)
+
     class Meta:
         widgets = {'problem': HeavySelect2Widget(data_view='problem_select2')}
 
@@ -62,8 +69,16 @@ class ContestProblemInline(admin.TabularInline):
     model = ContestProblem
     verbose_name = _('Problem')
     verbose_name_plural = 'Problems'
-    fields = ('problem', 'points', 'partial', 'is_pretested', 'max_submissions', 'output_prefix_override', 'order')
+    fields = ('problem', 'points', 'partial', 'is_pretested', 'max_submissions', 'order')
     form = ContestProblemInlineForm
+
+
+def today():
+    return timezone.localtime(timezone.now()).replace(hour=0, minute=0, second=0, microsecond=0)
+
+def days_hence(days=7):
+    date = today() + timezone.timedelta(days=days)
+    return timezone.localtime(date.replace(hour=23, minute=59, second=59))
 
 
 class ContestForm(ModelForm):
@@ -72,26 +87,31 @@ class ContestForm(ModelForm):
         if 'rate_exclude' in self.fields:
             self.fields['rate_exclude'].queryset = \
                 Profile.objects.filter(contest_history__contest=self.instance).distinct()
+        self.fields['key'].initial = make_key()
+        self.fields['start_time'].initial = today()
+        self.fields['end_time'].initial = days_hence()
+
 
     class Meta:
         widgets = {
             'organizers': HeavySelect2MultipleWidget(data_view='profile_select2'),
             'organizations': HeavySelect2MultipleWidget(data_view='organization_select2'),
-            'tags': Select2MultipleWidget
+            'tags': Select2MultipleWidget,
+            'access_code': GenerateRandomFruitTextInput
         }
 
-        if HeavyPreviewAdminPageDownWidget is not None:
-            widgets['description'] = HeavyPreviewAdminPageDownWidget(preview=reverse_lazy('contest_preview'))
+        if SummernoteWidget is not None:
+            widgets['description'] = SummernoteWidget()
 
 
 class ContestAdmin(VersionAdmin):
     fieldsets = (
         (None, {'fields': ('key', 'name', 'organizers', 'is_public', 'use_clarifications',
-                           'hide_problem_tags', 'run_pretests_only')}),
+                           'hide_problem_tags', 'run_pretests_only', 'use_balloons')}),
         (_('Scheduling'), {'fields': ('start_time', 'end_time', 'time_limit')}),
-        (_('Details'), {'fields': ('description', 'og_image', 'tags', 'summary')}),
-        (_('Rating'), {'fields': ('is_rated', 'rate_all', 'rate_exclude')}),
+        # (_('Rating'), {'fields': ('is_rated', 'rate_all', 'rate_exclude')}),
         (_('Organization'), {'fields': ('is_private', 'organizations', 'access_code')}),
+        (_('Details'), {'fields': ('description', 'og_image', 'tags', 'summary')}),
     )
     list_display = ('key', 'name', 'is_public', 'is_rated', 'start_time', 'end_time', 'time_limit', 'user_count')
     actions = ['make_public', 'make_private']
@@ -170,14 +190,15 @@ class ContestAdmin(VersionAdmin):
                 rate_contest(contest)
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:judge_contest_changelist')))
 
-    def get_form(self, *args, **kwargs):
-        form = super(ContestAdmin, self).get_form(*args, **kwargs)
+    def get_form(self, request, *args, **kwargs):
+        form = super(ContestAdmin, self).get_form(request, *args, **kwargs)
         perms = ('edit_own_contest', 'edit_all_contest')
         form.base_fields['organizers'].queryset = Profile.objects.filter(
             Q(user__is_superuser=True) |
             Q(user__groups__permissions__codename__in=perms) |
             Q(user__user_permissions__codename__in=perms)
         ).distinct()
+        form.base_fields['organizers'].initial = request.user
         return form
 
 

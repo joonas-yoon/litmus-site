@@ -10,10 +10,12 @@ from django.urls import reverse_lazy
 from django.utils.translation import ugettext_lazy as _
 
 from django_ace import AceWidget
-from judge.models import Organization, Profile, Submission, PrivateMessage, Language
+from judge.models import Organization, Profile, Submission, PrivateMessage, Language, Notification
 from judge.utils.subscription import newsletter_id
-from judge.widgets import MathJaxPagedownWidget, HeavyPreviewPageDownWidget, PagedownWidget, \
+from judge.widgets import MathJaxPagedownWidget, PagedownWidget, \
     Select2Widget, Select2MultipleWidget
+
+from django_summernote.widgets import SummernoteWidget
 
 
 def fix_unicode(string, unsafe=tuple(u'\u202a\u202b\u202d\u202e')):
@@ -36,11 +38,8 @@ class ProfileForm(ModelForm):
             'ace_theme': Select2Widget(attrs={'style': 'width:200px'})
         }
 
-        if HeavyPreviewPageDownWidget is not None:
-            widgets['about'] = HeavyPreviewPageDownWidget(
-                preview=reverse_lazy('profile_preview'),
-                attrs={'style': 'max-width:700px;min-width:700px;width:700px'}
-            )
+        if SummernoteWidget is not None:
+            widgets['about'] = SummernoteWidget
 
     def clean(self):
         organizations = self.cleaned_data.get('organizations') or []
@@ -104,8 +103,8 @@ class EditOrganizationForm(ModelForm):
         model = Organization
         fields = ['name', 'key', 'about']
         widgets = {}
-        if HeavyPreviewPageDownWidget is not None:
-            widgets['about'] = HeavyPreviewPageDownWidget(preview=reverse_lazy('organization_preview'))
+        if SummernoteWidget is not None:
+            widgets['about'] = SummernoteWidget()
 
 
 class NewMessageForm(ModelForm):
@@ -136,3 +135,13 @@ class CustomAuthenticationForm(AuthenticationForm):
     def _has_social_auth(self, key):
         return (getattr(settings, 'SOCIAL_AUTH_%s_KEY' % key, None) and
                 getattr(settings, 'SOCIAL_AUTH_%s_SECRET' % key, None))
+
+
+class NewNotificationForm(ModelForm):
+    class Meta:
+        model = Notification
+        fields = ['body']
+        widgets = {}
+        if SummernoteWidget is not None:
+            widgets['body'] = SummernoteWidget(attrs={'height': '200px'})
+
